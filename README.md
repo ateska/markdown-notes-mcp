@@ -30,30 +30,23 @@ The Model Context Protocol (MCP) is a standardized protocol for connecting AI ap
 - **Security**: Path normalization prevents directory traversal attacks
 
 
-## Installation
 
-```bash
-pip install asab-mcp
-```
+## Quick Start
 
-Or clone the repository and install dependencies:
+
+### Installation into a Docker
 
 ```bash
 git clone <repository-url>
-cd markdown-notes-mcp
-pip install -r requirements.txt  # if available
+docker build -t markdown-notes-mcp .
 ```
-
-## Quick Start
 
 
 ### Running the Server
 
 ```bash
-python markdown-notes-mcp.py
+docker run -it -v$(pwd)/etc:/conf:ro -p 8898:8898 --rm markdown-notes-mcp
 ```
-
-The server will start on `http://localhost:8898` by default. You can configure the listen address and notes directory in your ASAB configuration file.
 
 
 ### Configuration
@@ -74,8 +67,6 @@ ids = tenant1,tenant2
 - `notes`: Directory path where Markdown notes will be stored (default: `notes`), the first subdirectory is a tenant.
 - `listen`: HTTP server listen address (default: `8898`)
 - `ids`: Comma-separated list of tenant IDs for multi-tenant support, at least one tenant must be provided
-
-
 
 
 ## License
