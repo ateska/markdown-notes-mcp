@@ -1,0 +1,33 @@
+# Git files
+.git/
+.gitignore
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Documentation
+README.md
+LICENSE
+
+# Notes directory (will be mounted as volume)
+notes/
+
+# Other
+*.md
+.DS_Store
+

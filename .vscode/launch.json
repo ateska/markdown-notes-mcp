@@ -1,0 +1,24 @@
+{
+	// Use IntelliSense to learn about possible attributes.
+	// Hover to view descriptions of existing attributes.
+	// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "markdown-notes-mcp",
+			"type": "python",
+			"request": "launch",
+			"program": "markdown-notes-mcp.py",
+			"cwd": "${workspaceFolder}",
+			"console": "integratedTerminal",
+			"justMyCode": true,
+			"args": [
+				"-c",
+				"${workspaceFolder}/etc/markdown-notes-mcp.conf"
+			],
+			"env": {
+				"PYTHONPATH": "/root/Workspace/asab:%{PYTHONPATH}"
+			}
+		}
+	]
+}
