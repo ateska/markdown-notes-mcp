@@ -2,17 +2,20 @@
 
 [![License: BSD 3-Clause](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](LICENSE)
 
-MCP server that enables AI assistants to manage Markdown notes through the Model Context Protocol. Built on [ASAB](https://github.com/TeskaLabs/asab) framework with multi-tenant support and image upload capabilities.
+MCP server that enables AI assistants to manage Markdown notes through the Model Context Protocol.
+Built on [ASAB](https://github.com/TeskaLabs/asab) framework with multi-tenant support and image upload capabilities.
+This project is also a demo how to write MCP servers using ASAB framework and Python.
+
 
 ## Overview
 
-`markdown-notes-mcp` is a [MCP](https://modelcontextprotocol.io/docs/getting-started/intro) (Model Context Protocol) server implementation that provides AI assistants with tools to create, read, update, delete, and organize Markdown notes. The server exposes a standardized MCP interface, allowing AI applications to interact with a local or remote Markdown notes repository.
+`markdown-notes-mcp` is a [MCP](https://modelcontextprotocol.io/docs/getting-started/intro) (Model Context Protocol) server implementation that provides AI assistants with tools to create, read, update, delete, and organize Markdown notes.
+The server exposes a standardized MCP interface, allowing AI applications to interact with a local or remote Markdown notes repository.
+This MCP server ofers _Streamable HTTP transport_, it DOESN'T provide _Stdio transport_ (yet).
 
 The cool part is that you can interconnect more LLMs to work colaboratively on Markdown notes; ie. one is the writer and second is the opponent.
 
 The Model Context Protocol (MCP) is a standardized protocol for connecting AI applications to external data sources and tools. This implementation leverages ASAB's microservice framework (`aiohttp` internally), providing unified configuration, logging, metrics, and HTTP server capabilities.
-
-This MCP server ofers _Streamable HTTP transport_, it DOESN'T provide _Stdio transport_ (yet).
 
 
 ## Features
