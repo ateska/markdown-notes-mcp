@@ -365,25 +365,40 @@ class MarkdownNotesMCPHandler():
 
 
 	async def resource_list_notes(self):
+		tenant = asab.contextvars.Tenant.get()
+
+		notes_path = _normalize_path(self.NotesDirectory, '', tenant)
+		if notes_path is None:
+			raise ValueError("Path is not within the notes directory")
+
 		resources = []
-		for root, dirs, files in os.walk(self.NotesDirectory):
+		for root, dirs, files in os.walk(notes_path):
 			for file in files:
-				if file.endswith(NOTE_EXTENSION):
-					path = root[len(self.NotesDirectory):]
-					# Handle root directory case (empty path)
-					if path:
-						uri = f"{NOTE_URI_PREFIX}/{path}/{file}"
-						name = f"{path}/{file[:-len(NOTE_EXTENSION)]}"
-					else:
-						uri = f"{NOTE_URI_PREFIX}/{file}"
-						name = file[:-len(NOTE_EXTENSION)]
-					
-					resources.append(asab.mcp.MCPToolResultResourceLink(
-						uri=uri,
-						name=name,
-						description=f"Markdown note: {name}",
-						mimeType=NOTE_MIME_TYPE,
-					))
+				if file.startswith('.'):
+					continue
+
+				if not file.endswith(NOTE_EXTENSION):
+					continue
+
+				path = root[len(notes_path):]
+				if '/.' in path:
+					continue
+
+				# Handle root directory case (empty path)
+				if path:
+					uri = f"{NOTE_URI_PREFIX}/{path}/{file}"
+					name = f"{path[1:]}/{file[:-len(NOTE_EXTENSION)]}"
+				else:
+					uri = f"{NOTE_URI_PREFIX}/{file}"
+					name = file[:-len(NOTE_EXTENSION)]
+				
+				resources.append(asab.mcp.MCPToolResultResourceLink(
+					uri=uri,
+					name=name,
+					description=f"Markdown note: {name}",
+					mimeType=NOTE_MIME_TYPE,
+				))
+
 		return resources
 
 
