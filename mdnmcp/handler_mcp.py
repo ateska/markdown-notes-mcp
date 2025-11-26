@@ -1,5 +1,6 @@
 import os
 import logging
+import urllib.parse
 
 import asab
 import asab.mcp
@@ -339,8 +340,23 @@ class MarkdownNotesMCPHandler():
 		Returns the note content or None if the note doesn't exist.
 		'''
 
-		assert uri.startswith(NOTE_URI_PREFIX)
-		note_path = uri[len(NOTE_URI_PREFIX):]
+		uri_parsed = urllib.parse.urlparse(uri)
+		if uri_parsed.scheme != NOTE_URI_PREFIX[:-3]:
+			raise ValueError(f"Invalid URI scheme: {uri_parsed.scheme}; must be '{NOTE_URI_PREFIX}'")
+
+		if uri_parsed.netloc != '':
+			raise ValueError(f"Invalid URI netloc: {uri_parsed.netloc}; must be empty")
+
+		if uri_parsed.params != '':
+			raise ValueError(f"Invalid URI params: {uri_parsed.params}; must be empty")
+
+		if uri_parsed.query != '':
+			raise ValueError(f"Invalid URI query: {uri_parsed.query}; must be empty")
+
+		if uri_parsed.fragment != '':
+			raise ValueError(f"Invalid URI fragment: {uri_parsed.fragment}; must be empty")
+
+		note_path = urllib.parse.unquote(uri_parsed.path)
 		tenant = asab.contextvars.Tenant.get()
 
 		if not note_path.endswith(NOTE_EXTENSION):
