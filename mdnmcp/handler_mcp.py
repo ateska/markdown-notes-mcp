@@ -4,16 +4,15 @@ import urllib.parse
 
 import asab
 import asab.mcp
-import asab.contextvars
 
 
 L = logging.getLogger(__name__)
 
+from .utils import NOTE_EXTENSION
 
 NOTE_URI_PREFIX = "note://"
 PICTURE_URI_PREFIX="img://"
 NOTE_MIME_TYPE = "text/markdown"
-NOTE_EXTENSION = ".md"
 PICTURE_EXTENSIONS = {".jpg", ".png", ".gif"}
 
 
@@ -21,10 +20,6 @@ class MarkdownNotesMCPHandler():
 
 	def __init__(self, app):
 		self.App = app
-
-		self.NotesDirectory = asab.Config.get("general", "notes", fallback="notes")
-
-		os.makedirs(self.NotesDirectory, exist_ok=True)
 
 		self.App.MCPService.add_tool(self.tool_create_or_update_note)
 		self.App.MCPService.add_tool(self.tool_delete_note)
@@ -70,12 +65,10 @@ class MarkdownNotesMCPHandler():
 		},
 	)
 	async def tool_create_or_update_note(self, path, content):
-		tenant = asab.contextvars.Tenant.get()
-
 		if not path.endswith(NOTE_EXTENSION):
 			path += NOTE_EXTENSION
 
-		note_path = _normalize_path(self.NotesDirectory, path, tenant)
+		note_path = self.App.normalize_note_path(path)
 		if note_path is None:
 			raise ValueError("Path is not within the notes directory")
 
@@ -122,12 +115,11 @@ class MarkdownNotesMCPHandler():
 		},
 	)
 	async def tool_delete_note(self, path):
-		tenant = asab.contextvars.Tenant.get()
 
 		if not path.endswith(NOTE_EXTENSION):
 			path += NOTE_EXTENSION
 
-		note_path = _normalize_path(self.NotesDirectory, path, tenant)
+		note_path = self.App.normalize_note_path(path)
 		if note_path is None:
 			raise ValueError("Path is not within the notes directory")
 
@@ -176,9 +168,7 @@ class MarkdownNotesMCPHandler():
 		},
 	)
 	async def tool_list_notes(self, directory='', directories=False):
-		tenant = asab.contextvars.Tenant.get()
-
-		directory_path = _normalize_path(self.NotesDirectory, directory, tenant)
+		directory_path = self.App.normalize_note_path(directory)
 		if directory_path is None:
 			raise ValueError("Path is not within the notes directory")
 
@@ -248,12 +238,10 @@ class MarkdownNotesMCPHandler():
 		},
 	)
 	async def tool_read_note(self, path):
-		tenant = asab.contextvars.Tenant.get()
-
 		if not path.endswith(NOTE_EXTENSION):
 			path += NOTE_EXTENSION
 
-		note_path = _normalize_path(self.NotesDirectory, path, tenant)
+		note_path = self.App.normalize_note_path(path)
 		if note_path is None:
 			raise ValueError("Path is not within the notes directory")
 
@@ -294,9 +282,7 @@ class MarkdownNotesMCPHandler():
 		},
 	)
 	async def tool_upload_picture(self, path, content):
-		tenant = asab.contextvars.Tenant.get()
-
-		path = _normalize_path(self.NotesDirectory, path, tenant)
+		path = self.App.normalize_note_path(path)
 		if path is None:
 			raise ValueError("Path is not within the notes directory")
 
@@ -357,12 +343,11 @@ class MarkdownNotesMCPHandler():
 			raise ValueError(f"Invalid URI fragment: {uri_parsed.fragment}; must be empty")
 
 		note_path = urllib.parse.unquote(uri_parsed.path)
-		tenant = asab.contextvars.Tenant.get()
 
 		if not note_path.endswith(NOTE_EXTENSION):
 			note_path += NOTE_EXTENSION
 
-		note_path = _normalize_path(self.NotesDirectory, note_path, tenant)
+		note_path = self.App.normalize_note_path(note_path)
 		if note_path is None:
 			raise ValueError("Path is not within the notes directory")
 
@@ -381,9 +366,7 @@ class MarkdownNotesMCPHandler():
 
 
 	async def resource_list_notes(self):
-		tenant = asab.contextvars.Tenant.get()
-
-		notes_path = _normalize_path(self.NotesDirectory, '', tenant)
+		notes_path = self.App.normalize_note_path('')
 		if notes_path is None:
 			raise ValueError("Path is not within the notes directory")
 
@@ -416,23 +399,3 @@ class MarkdownNotesMCPHandler():
 				))
 
 		return resources
-
-
-def _normalize_path(base_path, user_path, tenant):
-	'''
-	Normalize the path to be within the base path.
-	'''
-
-	assert tenant is not None
-
-	while user_path.startswith('/'):
-		user_path = user_path[1:]
-
-	abs_base = os.path.abspath(os.path.join(base_path, tenant))
-	abs_user = os.path.abspath(os.path.join(abs_base, user_path))
-
-	if os.path.commonpath([abs_base, abs_user]) == abs_base:
-		return abs_user
-
-	else:
-		return None
