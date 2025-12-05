@@ -83,12 +83,17 @@ class MarkdownNotesMCPHandler():
 		else:
 			L.log(asab.LOG_NOTICE, "Updated a Markdown note", struct_data={"path": path})
 
-		return asab.mcp.MCPToolResultResourceLink(
-			uri=f"{NOTE_URI_PREFIX}/{path}",
-			name=path,
-			description=f"{'Created' if new_note else 'Updated'} a Markdown note",
-			mimeType=NOTE_MIME_TYPE,
-		)
+		return [
+			asab.mcp.MCPToolResultResourceLink(
+				uri=f"{NOTE_URI_PREFIX}/{path}",
+				name=path,
+				description=f"{'Created' if new_note else 'Updated'} a Markdown note",
+				mimeType=NOTE_MIME_TYPE,
+			),
+			asab.mcp.MCPToolResultTextContent(
+				text=f"{'Succesfully created' if new_note else 'Succesfully updated'} a Markdown note and stored it at {path}"
+			),
+		]
 
 	@asab.mcp.mcp_tool(
 		name="delete_note",
