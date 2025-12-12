@@ -188,6 +188,14 @@ class MarkdownNotesWebHandler():
 
 		# Get the directory where to create the note (empty string means root)
 		directory = body.get("directory", "")
+		# Get the name for the new note (required)
+		name = body.get("name", "")
+
+		if not name:
+			raise asab.web.rest.HTTPBadRequest()
+
+		# Sanitize name: remove path separators
+		name = os.path.basename(name)
 
 		# Validate and normalize the directory path
 		if directory:
@@ -201,15 +209,17 @@ class MarkdownNotesWebHandler():
 			if dir_path is None:
 				raise asab.web.rest.HTTPNotFound()
 
-		# Generate a unique filename
-		base_name = "new-note"
-		counter = 1
-		while True:
-			filename = f"{base_name}-{counter}{NOTE_EXTENSION}"
-			note_path = os.path.join(dir_path, filename)
-			if not os.path.exists(note_path):
-				break
-			counter += 1
+		# Ensure the filename has the proper extension
+		if not name.endswith(NOTE_EXTENSION):
+			filename = f"{name}{NOTE_EXTENSION}"
+		else:
+			filename = name
+
+		note_path = os.path.join(dir_path, filename)
+
+		# Check if file already exists
+		if os.path.exists(note_path):
+			raise asab.web.rest.HTTPConflict()
 
 		# Create the new note file with empty content
 		with open(note_path, "w") as f:
@@ -347,6 +357,14 @@ class MarkdownNotesWebHandler():
 
 		# Get the parent directory where to create the new directory (empty string means root)
 		parent_directory = body.get("parent_directory", "")
+		# Get the name for the new directory (required)
+		name = body.get("name", "")
+
+		if not name:
+			raise asab.web.rest.HTTPBadRequest()
+
+		# Sanitize name: remove path separators
+		dirname = os.path.basename(name)
 
 		# Validate and normalize the parent directory path
 		if parent_directory:
@@ -360,15 +378,11 @@ class MarkdownNotesWebHandler():
 			if parent_path is None:
 				raise asab.web.rest.HTTPNotFound()
 
-		# Generate a unique directory name
-		base_name = "new-directory"
-		counter = 1
-		while True:
-			dirname = f"{base_name}-{counter}"
-			dir_path = os.path.join(parent_path, dirname)
-			if not os.path.exists(dir_path):
-				break
-			counter += 1
+		dir_path = os.path.join(parent_path, dirname)
+
+		# Check if directory already exists
+		if os.path.exists(dir_path):
+			raise asab.web.rest.HTTPConflict()
 
 		# Create the new directory
 		try:
