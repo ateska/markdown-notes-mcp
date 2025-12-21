@@ -1,6 +1,11 @@
 import os
 import time
+import json
+import asyncio
+
+import aiohttp_sse
 import asab.web.rest
+
 
 from .utils import NOTE_EXTENSION
 
@@ -76,15 +81,26 @@ class MarkdownNotesWebHandler():
 
 		return items
 
-	def get_tree(self, request):
+
+	async def get_tree(self, request):
 		tenant = asab.contextvars.Tenant.get()
 
 		root_path = self.App.normalize_note_path("", tenant)
 		if root_path is None:
-			raise asab.web.rest.HTTPNotFound()
+			raise KeyError("Path not found")
 
 		if not os.path.isdir(root_path):
-			raise asab.web.rest.HTTPNotFound()
+			raise KeyError("Path not found")
+
+		if request.headers.get("accept") == "text/event-stream":
+			# SSE version of the response
+			async with aiohttp_sse.sse_response(request) as response:
+				while True:
+					tree = self._build_tree(root_path)
+					await response.send(data=json.dumps(tree), event="tree")
+					await asyncio.sleep(5)
+
+				return response
 
 		tree = self._build_tree(root_path)
 
@@ -96,6 +112,7 @@ class MarkdownNotesWebHandler():
 
 		return asab.web.rest.json_response(request, data)
 
+
 	def read_note(self, request):
 		tenant = asab.contextvars.Tenant.get()
 		path = request.match_info.get("path", "")
@@ -105,10 +122,10 @@ class MarkdownNotesWebHandler():
 
 		note_path = self.App.normalize_note_path(path, tenant)
 		if note_path is None:
-			raise asab.web.rest.HTTPNotFound()
+			raise KeyError("Note not found")
 
 		if not os.path.isfile(note_path):
-			raise asab.web.rest.HTTPNotFound()
+			raise KeyError("Note not found")
 
 		with open(note_path, "r") as f:
 			content = f.read()
@@ -139,21 +156,21 @@ class MarkdownNotesWebHandler():
 
 		note_path = self.App.normalize_note_path(path, tenant)
 		if note_path is None:
-			raise asab.web.rest.HTTPNotFound()
+			raise KeyError("Note not found")
 
 		# Ensure the note file exists (we don't create new notes via this endpoint)
 		if not os.path.isfile(note_path):
-			raise asab.web.rest.HTTPNotFound()
+			raise KeyError("Note not found")
 
 		# Parse the request body
 		try:
 			body = await request.json()
 		except Exception:
-			raise asab.web.rest.HTTPBadRequest()
+			raise ValueError("Invalid request body")
 
 		content = body.get("content")
 		if content is None:
-			raise asab.web.rest.HTTPBadRequest()
+			raise ValueError("Invalid request body")
 
 		# Write the content to the file
 		with open(note_path, "w") as f:
@@ -192,7 +209,7 @@ class MarkdownNotesWebHandler():
 		name = body.get("name", "")
 
 		if not name:
-			raise asab.web.rest.HTTPBadRequest()
+			raise ValueError("Invalid request body")
 
 		# Sanitize name: remove path separators
 		name = os.path.basename(name)
@@ -201,13 +218,13 @@ class MarkdownNotesWebHandler():
 		if directory:
 			dir_path = self.App.normalize_note_path(directory, tenant)
 			if dir_path is None:
-				raise asab.web.rest.HTTPNotFound()
+				raise KeyError("Directory not found")
 			if not os.path.isdir(dir_path):
-				raise asab.web.rest.HTTPNotFound()
+				raise KeyError("Directory not found")
 		else:
 			dir_path = self.App.normalize_note_path("", tenant)
 			if dir_path is None:
-				raise asab.web.rest.HTTPNotFound()
+				raise KeyError("Directory not found")
 
 		# Ensure the filename has the proper extension
 		if not name.endswith(NOTE_EXTENSION):
@@ -219,7 +236,7 @@ class MarkdownNotesWebHandler():
 
 		# Check if file already exists
 		if os.path.exists(note_path):
-			raise asab.web.rest.HTTPConflict()
+			raise ValueError("Note already exists")
 
 		# Create the new note file with empty content
 		with open(note_path, "w") as f:
@@ -253,13 +270,13 @@ class MarkdownNotesWebHandler():
 		try:
 			body = await request.json()
 		except Exception:
-			raise asab.web.rest.HTTPBadRequest()
+			raise ValueError("Invalid request body")
 
 		old_path = body.get("old_path")
 		new_name = body.get("new_name")
 
 		if not old_path or not new_name:
-			raise asab.web.rest.HTTPBadRequest()
+			raise ValueError("Invalid request body")
 
 		# Ensure old_path has the extension
 		if not old_path.endswith(NOTE_EXTENSION):
@@ -268,10 +285,10 @@ class MarkdownNotesWebHandler():
 		# Validate old path
 		old_note_path = self.App.normalize_note_path(old_path, tenant)
 		if old_note_path is None:
-			raise asab.web.rest.HTTPNotFound()
+			raise KeyError("Note not found")
 
 		if not os.path.isfile(old_note_path):
-			raise asab.web.rest.HTTPNotFound()
+			raise KeyError("Note not found")
 
 		# Build the new path (same directory, new name)
 		old_dir = os.path.dirname(old_path)
@@ -286,17 +303,17 @@ class MarkdownNotesWebHandler():
 		# Validate new path
 		new_note_path = self.App.normalize_note_path(new_path, tenant)
 		if new_note_path is None:
-			raise asab.web.rest.HTTPBadRequest()
+			raise ValueError("Invalid request body")
 
 		# Check if new path already exists
 		if os.path.exists(new_note_path):
-			raise asab.web.rest.HTTPConflict()
+			raise ValueError("Note already exists")
 
 		# Rename the file
 		try:
 			os.rename(old_note_path, new_note_path)
 		except OSError:
-			raise asab.web.rest.HTTPInternalServerError()
+			raise ValueError("Failed to rename note")
 
 		# Get modification time
 		try:
@@ -325,16 +342,16 @@ class MarkdownNotesWebHandler():
 
 		note_path = self.App.normalize_note_path(path, tenant)
 		if note_path is None:
-			raise asab.web.rest.HTTPNotFound()
+			raise KeyError("Note not found")
 
 		if not os.path.isfile(note_path):
-			raise asab.web.rest.HTTPNotFound()
+			raise KeyError("Note not found")
 
 		# Delete the file
 		try:
 			os.remove(note_path)
 		except OSError:
-			raise asab.web.rest.HTTPInternalServerError()
+			raise ValueError("Failed to delete note")
 
 		data = {
 			"result": "OK",
@@ -361,7 +378,7 @@ class MarkdownNotesWebHandler():
 		name = body.get("name", "")
 
 		if not name:
-			raise asab.web.rest.HTTPBadRequest()
+			raise ValueError("Invalid request body")
 
 		# Sanitize name: remove path separators
 		dirname = os.path.basename(name)
@@ -370,25 +387,25 @@ class MarkdownNotesWebHandler():
 		if parent_directory:
 			parent_path = self.App.normalize_note_path(parent_directory, tenant)
 			if parent_path is None:
-				raise asab.web.rest.HTTPNotFound()
+				raise KeyError("Directory not found")
 			if not os.path.isdir(parent_path):
-				raise asab.web.rest.HTTPNotFound()
+				raise KeyError("Directory not found")
 		else:
 			parent_path = self.App.normalize_note_path("", tenant)
 			if parent_path is None:
-				raise asab.web.rest.HTTPNotFound()
+				raise KeyError("Directory not found")
 
 		dir_path = os.path.join(parent_path, dirname)
 
 		# Check if directory already exists
 		if os.path.exists(dir_path):
-			raise asab.web.rest.HTTPConflict()
+			raise ValueError("Directory already exists")
 
 		# Create the new directory
 		try:
 			os.makedirs(dir_path)
 		except OSError:
-			raise asab.web.rest.HTTPInternalServerError()
+			raise ValueError("Failed to create directory")
 
 		# Build the relative path for the response
 		relative_path = f"{parent_directory}/{dirname}" if parent_directory else dirname
@@ -411,21 +428,21 @@ class MarkdownNotesWebHandler():
 		try:
 			body = await request.json()
 		except Exception:
-			raise asab.web.rest.HTTPBadRequest()
+			raise ValueError("Invalid request body")
 
 		old_path = body.get("old_path")
 		new_name = body.get("new_name")
 
 		if not old_path or not new_name:
-			raise asab.web.rest.HTTPBadRequest()
+			raise ValueError("Invalid request body")
 
 		# Validate old path
 		old_dir_path = self.App.normalize_note_path(old_path, tenant)
 		if old_dir_path is None:
-			raise asab.web.rest.HTTPNotFound()
+			raise KeyError("Directory not found")
 
 		if not os.path.isdir(old_dir_path):
-			raise asab.web.rest.HTTPNotFound()
+			raise KeyError("Directory not found")
 
 		# Build the new path (same parent directory, new name)
 		parent_dir = os.path.dirname(old_path)
@@ -438,17 +455,17 @@ class MarkdownNotesWebHandler():
 		# Validate new path
 		new_dir_path = self.App.normalize_note_path(new_path, tenant)
 		if new_dir_path is None:
-			raise asab.web.rest.HTTPBadRequest()
+			raise ValueError("Invalid request body")
 
 		# Check if new path already exists
 		if os.path.exists(new_dir_path):
-			raise asab.web.rest.HTTPConflict()
+			raise ValueError("Directory already exists")
 
 		# Rename the directory
 		try:
 			os.rename(old_dir_path, new_dir_path)
 		except OSError:
-			raise asab.web.rest.HTTPInternalServerError()
+			raise ValueError("Failed to rename directory")
 
 		data = {
 			"result": "OK",
@@ -468,20 +485,20 @@ class MarkdownNotesWebHandler():
 		path = request.match_info.get("path", "")
 
 		if not path:
-			raise asab.web.rest.HTTPBadRequest()
+			raise ValueError("Invalid request body")
 
 		dir_path = self.App.normalize_note_path(path, tenant)
 		if dir_path is None:
-			raise asab.web.rest.HTTPNotFound()
+			raise KeyError("Directory not found")
 
 		if not os.path.isdir(dir_path):
-			raise asab.web.rest.HTTPNotFound()
+			raise KeyError("Directory not found")
 
 		# Delete the directory and all its contents
 		try:
 			shutil.rmtree(dir_path)
 		except OSError:
-			raise asab.web.rest.HTTPInternalServerError()
+			raise ValueError("Failed to delete directory")
 
 		data = {
 			"result": "OK",

@@ -10,6 +10,8 @@ import asab.mcp
 from .handler_mcp import MarkdownNotesMCPHandler
 from .handler_web import MarkdownNotesWebHandler
 
+from .llmchat import LLMChatService, LLMChatWebHandler
+
 #
 
 L = logging.getLogger(__name__)
@@ -41,12 +43,15 @@ class MarkdownNotesMCPApplication(asab.Application):
 		self.TenantService = asab.web.tenant.TenantService(self)
 
 		# Add the MCP service, it will be used to register tools and resources
-		self.MCPService = asab.mcp.MCPService(self, web, name="markdown-notes-mcp", version="25.11.0")
+		self.MCPService = asab.mcp.MCPService(self, web, name="Markdown Notes", version="25.11.0")
 
 		# Add the Markdown notes handler, it will be used to register tools and resources for the Markdown notes
 		self.MCPHandler = MarkdownNotesMCPHandler(self)
 
 		self.WebHandler = MarkdownNotesWebHandler(self, web)
+
+		self.LLMChatService = LLMChatService(self)
+		self.LLMChatWebHandler = LLMChatWebHandler(self, web)
 
 
 	def normalize_note_path(self, user_path, tenant = None):
