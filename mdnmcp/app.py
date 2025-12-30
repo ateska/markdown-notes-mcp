@@ -10,7 +10,7 @@ import asab.mcp
 from .handler_mcp import MarkdownNotesMCPHandler
 from .handler_web import MarkdownNotesWebHandler
 
-from .llmchat import LLMChatService, LLMChatWebHandler
+from .llmconversation import LLMConversationRouterService, LLMConversationWebHandler
 
 #
 
@@ -50,8 +50,8 @@ class MarkdownNotesMCPApplication(asab.Application):
 
 		self.WebHandler = MarkdownNotesWebHandler(self, web)
 
-		self.LLMChatService = LLMChatService(self)
-		self.LLMChatWebHandler = LLMChatWebHandler(self, web)
+		self.LLMConversationRouterService = LLMConversationRouterService(self)
+		self.LLMConversationWebHandler = LLMConversationWebHandler(self.LLMConversationRouterService, web)
 
 
 	def normalize_note_path(self, user_path, tenant = None):
