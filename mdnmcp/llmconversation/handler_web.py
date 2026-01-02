@@ -52,7 +52,7 @@ class LLMConversationWebHandler():
 		await ws.send_json({
 			"type": "chat.mounted",
 			"conversation_id": conversation.conversation_id,
-			"model": models[0],
+			"models": models,
 		})
 
 		self.Websockets.add(ws)
