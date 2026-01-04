@@ -1,11 +1,10 @@
 import os
 import logging
 
-import asab.api
-import asab.web.rest
-import asab.contextvars
-
 import asab.mcp
+import asab.web.rest
+import asab.library
+import asab.contextvars
 
 from .handler_mcp import MarkdownNotesMCPHandler
 from .handler_web import MarkdownNotesWebHandler
@@ -25,6 +24,9 @@ asab.Config.add_defaults({
 	"web": {
 		"listen": "8898",
 	},
+	"library": {
+		"providers": "file://./library",
+	}
 })
 
 
@@ -32,6 +34,8 @@ class MarkdownNotesMCPApplication(asab.Application):
 
 	def __init__(self):
 		super().__init__()
+
+		self.LibraryService = asab.library.LibraryService(self, "LibraryService")
 
 		self.NotesDirectory = asab.Config.get("general", "notes", fallback="notes")
 		os.makedirs(self.NotesDirectory, exist_ok=True)

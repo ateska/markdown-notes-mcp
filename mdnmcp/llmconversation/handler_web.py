@@ -23,14 +23,6 @@ class LLMConversationWebHandler():
 
 
 	async def ws_conversation(self, request):
-		# try:
-		# 	async with self.LLMConversationRouterService.with_provider() as provider:
-		# 		models = await provider.get_models()
-		# 		if models is None:
-		# 			return aiohttp.web.Response(status=500, text="Error connecting to LLM chat service")
-		# except Exception as e:
-		# 	L.exception("Error connecting to LLM chat service")
-		# 	return aiohttp.web.Response(status=500, text=str(e))
 
 		models = await self.LLMConversationRouterService.get_models()
 		if models is None or len(models) == 0:
@@ -83,11 +75,12 @@ class LLMConversationWebHandler():
 									user_message = UserMessage(role='user', content=data.get('content', ''), model=data.get('model', models[0]))
 									await self.LLMConversationRouterService.create_exchange(conversation, user_message)
 
-									# finally:
-									# 	if len(chat.scheduled_tasks) > 0:
-									# 		L.warning("Unhandled scheduled tasks", struct_data={"tasks": chat.scheduled_tasks})
-									# 		del chat.scheduled_tasks[:]  # Remove all scheduled tasks 
-									# 	await reply({"type": "tasks.updated", "count": 0})
+								case 'conversation.stop':
+									await self.LLMConversationRouterService.stop_conversation(conversation)
+
+								case 'conversation.restart':
+									self.LLMConversationRouterService.restart_conversation(conversation, key=data.get('key'))
+									await self.LLMConversationRouterService.send_full_update(conversation, reply_to_client)
 
 								case 'update.full.requested':
 									await self.LLMConversationRouterService.send_full_update(conversation, reply_to_client)

@@ -3,14 +3,15 @@ import random
 import asyncio
 import logging
 
+import yaml
 import asab
 
 from .datamodel import Conversation, UserMessage, Exchange, FunctionCall
 from .tool_ping import tool_ping
 
-from .provider_v1response import LLMChatProviderV1Response
-from .provider_v1messages import LLMChatProviderV1Messages
-
+from .provider.v1response import LLMChatProviderV1Response
+from .provider.v1messages import LLMChatProviderV1Messages
+from .provider.v1chatcompletition import LLMChatProviderV1ChatCompletition
 
 #
 
@@ -18,28 +19,13 @@ L = logging.getLogger(__name__)
 
 #
 
-# content: `You are a helpful assistant within the application 'Markdown notes' that is used to write Markdown notes.
-# The user is a writer of Markdown note named '${notePath}'.
-# You are helping the user to write the note by providing review, suggestions, corrections and other feedback.
-# Use the tools to work with the note.
-# There is a whole directory of notes in the application, you can use the tools to work with the notes.
-# Use the GitHub Flavored Markdown syntax to format your responses.`
-
-
-Instructions = " ".join([
-	"You are a helpful assistant with access to tools.",
-	"You must call a function 'ping' when asked to ping any host or server.",
-	"You may use available tools to fulfill requests.",
-	"Always use the GitHub Flavored Markdown syntax to format your responses. Don't enclose the response in backticks if it's not a code block.",
-	"Always use preformatted text for reasoning.",
-	"You must respond in the same language as the user's message.",
-])
-
 class LLMConversationRouterService(asab.Service):
 
 
 	def __init__(self, app, service_name="LLMConversationRouterService"):
 		super().__init__(app, service_name)
+
+		self.LibraryService = app.LibraryService
 
 		self.Providers = []
 		self.Conversations = dict[str, Conversation]()
@@ -58,6 +44,8 @@ class LLMConversationRouterService(asab.Service):
 					self.Providers.append(LLMChatProviderV1Response(self, **asab.Config[section]))
 				case 'LLMChatProviderV1Messages':
 					self.Providers.append(LLMChatProviderV1Messages(self, **asab.Config[section]))
+				case 'LLMChatProviderV1ChatCompletition':
+					self.Providers.append(LLMChatProviderV1ChatCompletition(self, **asab.Config[section]))
 				case _:
 					L.warning("Unknown provider type, skipping", struct_data={"type": ptype})
 
@@ -71,10 +59,30 @@ class LLMConversationRouterService(asab.Service):
 
 		L.log(asab.LOG_NOTICE, "New conversation created", struct_data={"conversation_id": conversation_id})
 
-		conversation = Conversation(conversation_id=conversation_id, instructions=Instructions)
+		async with self.LibraryService.open("/Prompts/default.yaml") as item_io:
+			promt_decl = yaml.safe_load(item_io.read().decode("utf-8"))
+
+		instructions = promt_decl["instructions"]
+
+		conversation = Conversation(conversation_id=conversation_id, instructions=instructions)
 		self.Conversations[conversation.conversation_id] = conversation
 		return conversation
 
+
+	async def stop_conversation(self, conversation: Conversation) -> None:
+		for task in conversation.tasks:
+			conversation.chat_requested = False
+			task.cancel()
+		L.log(asab.LOG_NOTICE, "Conversation stopped", struct_data={"conversation_id": conversation.conversation_id})
+
+
+	def restart_conversation(self, conversation: Conversation, key: str) -> None:
+		for i in range(len(conversation.exchanges)):
+			if conversation.exchanges[i].items[0].key == key:
+				del conversation.exchanges[i:]
+				return
+		L.warning("Conversation restart failed", struct_data={"conversation_id": conversation.conversation_id, "key": key})
+			
 
 	async def get_conversation(self, conversation_id, create=False):
 		conversation = self.Conversations.get(conversation_id)
@@ -104,6 +112,20 @@ class LLMConversationRouterService(asab.Service):
 
 		def on_task_done(task):
 			conversation.tasks.remove(task)
+
+			if len(conversation.tasks) == 0 and conversation.chat_requested:
+				# Initialize a new exchange with LLM
+				new_exchange = Exchange()
+				conversation.exchanges.append(new_exchange)
+				conversation.chat_requested = False
+
+				t = asyncio.create_task(
+					self.task_chat_request(conversation, new_exchange),
+					name=f"conversation-{conversation.conversation_id}-task"
+				)
+				t.add_done_callback(on_task_done)
+				conversation.tasks.append(t)
+
 			asyncio.create_task(self.send_update_tasks(conversation))
 
 		t.add_done_callback(on_task_done)
@@ -117,7 +139,7 @@ class LLMConversationRouterService(asab.Service):
 			conversation,
 			{
 				"type": "tasks.updated",
-				"count": len(conversation.tasks),
+				"count": len(conversation.tasks) + (1 if conversation.chat_requested else 0),
 			}
 		)
 
@@ -233,7 +255,5 @@ class LLMConversationRouterService(asab.Service):
 				"item": function_call.to_dict(),
 			})
 
-			# Initialize a new exchange with LLM
-			new_exchange = Exchange()
-			conversation.exchanges.append(new_exchange)
-			await self.schedule_task(conversation, new_exchange, self.task_chat_request)
+			# Flag the conversation that is chat requested
+			conversation.chat_requested = True

@@ -124,6 +124,7 @@ class Conversation(pydantic.BaseModel):
 	monitors: set[typing.Callable] = pydantic.Field(default_factory=set)
 		
 	tasks: list[typing.Callable] = pydantic.Field(default_factory=list)
+	chat_requested: bool = False  # If true, then a LLMService will request a new exchange with the LLM when tasks are completed
 
 
 	def get_model(self) -> str | None:

@@ -6,7 +6,7 @@ import aiohttp
 
 import asab
 
-from .datamodel import Conversation, Exchange, AssistentMessage, AssistentReasoning, FunctionCall
+from ..datamodel import Conversation, Exchange, AssistentMessage, AssistentReasoning, FunctionCall
 from .provider_abc import LLMChatProviderABC
 
 L = logging.getLogger(__name__)

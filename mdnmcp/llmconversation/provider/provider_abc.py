@@ -2,7 +2,7 @@ import abc
 import logging
 import aiohttp
 
-from .datamodel import Conversation, Exchange
+from ..datamodel import Conversation, Exchange
 
 L = logging.getLogger(__name__)
 

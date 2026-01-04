@@ -19,7 +19,13 @@ async def tool_ping(function_call: FunctionCall) -> None:
 	"""
 	yield "validating"
 
-	arguments = json.loads(function_call.arguments)
+	try:
+		arguments = json.loads(function_call.arguments)
+	except Exception as e:
+		L.exception("Exception occurred while parsing arguments: '{}'".format(function_call.arguments), struct_data={"error": str(e)})
+		function_call.error = f"Exception occurred while parsing arguments."
+		function_call.error = True
+		return
 
 	target = arguments.get("target")
 	if not target:

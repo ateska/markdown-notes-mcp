@@ -6,7 +6,7 @@ import aiohttp
 
 import asab
 
-from .datamodel import Conversation, Exchange, AssistentMessage, AssistentReasoning, FunctionCall
+from ..datamodel import Conversation, Exchange, AssistentMessage, AssistentReasoning, FunctionCall
 from .provider_abc import LLMChatProviderABC
 
 L = logging.getLogger(__name__)
@@ -68,7 +68,7 @@ class LLMChatProviderV1Messages(LLMChatProviderABC):
 								"type": "tool_use",
 								"id": item.call_id,
 								"name": item.name,
-								"input": json.loads(item.arguments) if item.arguments else {},
+								# "input": json.loads(item.arguments) if item.arguments else {},
 							}],
 						})
 
@@ -129,6 +129,7 @@ class LLMChatProviderV1Messages(LLMChatProviderABC):
 
 				async for line in response.content:
 					line = line.decode("utf-8").rstrip('\n\r')
+					print(">>>", line)
 					
 					if line == '':
 						continue
