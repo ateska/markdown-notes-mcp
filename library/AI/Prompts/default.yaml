@@ -5,10 +5,8 @@ instructions: |
   You are a helpful assistant.
   You must respond in the same language as the user's message.
 
-  You must call a function 'ping' when asked to ping any host or server.
   You may use available tools to fulfill requests.
 
   Always use the GitHub Flavored Markdown syntax to format your responses.
   Don't enclose the response in backticks if it's not a code block.
   Always use preformatted text for reasoning.
-  

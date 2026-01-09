@@ -1,15 +1,10 @@
 import os
 import logging
 
-import asab.mcp
 import asab.web.rest
-import asab.library
 import asab.contextvars
 
-from .handler_mcp import MarkdownNotesMCPHandler
 from .handler_web import MarkdownNotesWebHandler
-
-from .llmconversation import LLMConversationRouterService, LLMConversationWebHandler
 
 #
 
@@ -24,18 +19,13 @@ asab.Config.add_defaults({
 	"web": {
 		"listen": "8898",
 	},
-	"library": {
-		"providers": "file://./library",
-	}
 })
 
 
-class MarkdownNotesMCPApplication(asab.Application):
+class MarkdownNotesApplication(asab.Application):
 
 	def __init__(self):
 		super().__init__()
-
-		self.LibraryService = asab.library.LibraryService(self, "LibraryService")
 
 		self.NotesDirectory = asab.Config.get("general", "notes", fallback="notes")
 		os.makedirs(self.NotesDirectory, exist_ok=True)
@@ -46,16 +36,7 @@ class MarkdownNotesMCPApplication(asab.Application):
 		# Initialize the Tenant service
 		self.TenantService = asab.web.tenant.TenantService(self)
 
-		# Add the MCP service, it will be used to register tools and resources
-		self.MCPService = asab.mcp.MCPService(self, web, name="Markdown Notes", version="25.11.0")
-
-		# Add the Markdown notes handler, it will be used to register tools and resources for the Markdown notes
-		self.MCPHandler = MarkdownNotesMCPHandler(self)
-
 		self.WebHandler = MarkdownNotesWebHandler(self, web)
-
-		self.LLMConversationRouterService = LLMConversationRouterService(self)
-		self.LLMConversationWebHandler = LLMConversationWebHandler(self.LLMConversationRouterService, web)
 
 
 	def normalize_note_path(self, user_path, tenant = None):

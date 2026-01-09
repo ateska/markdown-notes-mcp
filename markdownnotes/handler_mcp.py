@@ -129,7 +129,7 @@ class MarkdownNotesMCPHandler():
 			raise ValueError("Path is not within the notes directory")
 
 		if not os.path.isfile(note_path):
-			raise ValueError(f"Note '{path}' does not exist. Use 'list_notes' to see available notes.")
+			raise ValueError(f"Markdown note '{path}' does not exist. Use 'list_notes' to see available markdown notes.")
 
 		os.remove(note_path)
 
@@ -222,7 +222,7 @@ class MarkdownNotesMCPHandler():
 
 	@asab.mcp.mcp_tool(
 		name="read_note",
-		title="Read a note",
+		title="Read a markdown note",
 		description="""
 			Read and return the full content of a Markdown note at the specified path.
 			
@@ -251,7 +251,7 @@ class MarkdownNotesMCPHandler():
 			raise ValueError("Path is not within the notes directory")
 
 		if not os.path.isfile(note_path):
-			raise ValueError(f"Note '{path}' does not exist. Use 'list_notes' to see available notes.")
+			raise ValueError(f"Markdown note '{path}' does not exist. Use 'list_notes' to see available markdown notes.")
 
 		with open(note_path, "r") as f:
 			content = f.read()
