@@ -14,11 +14,14 @@ class MarkdownNotesWebHandler():
 	def __init__(self, app, web):
 		self.App = app
 		web.add_get(r"/{tenant}/tree", self.get_tree)
+		
 		web.add_get(r"/{tenant}/note/{path:.*}", self.read_note)
 		web.add_put(r"/{tenant}/note/{path:.*}", self.save_note)
 		web.add_post(r"/{tenant}/note-create", self.create_note)
 		web.add_post(r"/{tenant}/note-rename", self.rename_note)
 		web.add_delete(r"/{tenant}/note/{path:.*}", self.delete_note)
+
+		web.add_get(r"/{tenant}/directory/{path:.*}", self.list_directory)
 		web.add_post(r"/{tenant}/directory-create", self.create_directory)
 		web.add_post(r"/{tenant}/directory-rename", self.rename_directory)
 		web.add_delete(r"/{tenant}/directory/{path:.*}", self.delete_directory)
@@ -113,7 +116,34 @@ class MarkdownNotesWebHandler():
 		return asab.web.rest.json_response(request, data)
 
 
-	def read_note(self, request):
+	async def list_directory(self, request):
+		tenant = asab.contextvars.Tenant.get()
+		path = request.match_info.get("path", "")
+		directories = str(request.query.get("directories", "false")).lower() in ["true", "1", "t", "y", "yes", ""]
+
+		directory_path = self.App.normalize_note_path(path, tenant)
+		if directory_path is None:
+			return asab.web.rest.json_response(request, {"result": "NOT-FOUND", "error": "Path is not within the notes directory"}, status=404)
+
+		if not os.path.isdir(directory_path):
+			return asab.web.rest.json_response(request, {"result": "NOT-FOUND", "error": f"Directory '{path}' does not exist. Use an empty string to list the root directory."}, status=404)
+
+		result = {
+		}
+
+		result["notes"] = list(note for note in os.listdir(directory_path) if note.endswith(NOTE_EXTENSION) and not note.startswith('.'))
+
+		if directories:
+			result["directories"] = list(dir for dir in os.listdir(directory_path) if os.path.isdir(os.path.join(directory_path, dir)) and not dir.startswith('.'))
+
+		data = {
+			"result": "OK",
+			"data": result,
+		}
+		return asab.web.rest.json_response(request, data)
+
+
+	async def read_note(self, request):
 		tenant = asab.contextvars.Tenant.get()
 		path = request.match_info.get("path", "")
 
@@ -122,10 +152,10 @@ class MarkdownNotesWebHandler():
 
 		note_path = self.App.normalize_note_path(path, tenant)
 		if note_path is None:
-			raise KeyError("Note not found")
+			return asab.web.rest.json_response(request, {"result": "NOT-FOUND"}, status=404)
 
 		if not os.path.isfile(note_path):
-			raise KeyError("Note not found")
+			return asab.web.rest.json_response(request, {"result": "NOT-FOUND"}, status=404)
 
 		with open(note_path, "r") as f:
 			content = f.read()
@@ -156,21 +186,16 @@ class MarkdownNotesWebHandler():
 
 		note_path = self.App.normalize_note_path(path, tenant)
 		if note_path is None:
-			raise KeyError("Note not found")
-
-		# Ensure the note file exists (we don't create new notes via this endpoint)
-		if not os.path.isfile(note_path):
-			raise KeyError("Note not found")
-
+			return asab.web.rest.json_response(request, {"result": "ERROR", "error": "Note path is incorrect."}, status=400)
 		# Parse the request body
 		try:
 			body = await request.json()
 		except Exception:
-			raise ValueError("Invalid request body")
+			return asab.web.rest.json_response(request, {"result": "ERROR", "error": "Body is not a valid JSON object."}, status=400)
 
 		content = body.get("content")
 		if content is None:
-			raise ValueError("Invalid request body")
+			return asab.web.rest.json_response(request, {"result": "ERROR", "error": "Content is not provided."}, status=400)
 
 		# Write the content to the file
 		with open(note_path, "w") as f:
